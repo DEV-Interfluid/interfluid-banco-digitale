@@ -1,7 +1,22 @@
-import { AreaAccordo } from "@/components/area-accordo";
+import { Banco } from "@/components/banco";
 import { caricaArea, registra } from "@/lib/area";
 
 import { esci } from "./accesso/azioni";
+
+function saluto() {
+  const h = Number(new Intl.DateTimeFormat("it-IT", { hour: "numeric", hour12: false, timeZone: "Europe/Rome" }).format(new Date()));
+  return h < 13 ? "Buongiorno" : h < 18 ? "Buon pomeriggio" : "Buonasera";
+}
+
+function Marchio() {
+  return (
+    <span className="marchio">
+      <span className="anello" aria-hidden="true" />
+      <span className="nome">Banco</span>
+      <span className="di">Interfluid</span>
+    </span>
+  );
+}
 
 export default async function Home() {
   const area = await caricaArea();
@@ -10,10 +25,9 @@ export default async function Home() {
     return (
       <main className="accesso">
         <div className="scheda">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/interfluid-logo.svg" alt="Interfluid — Your Fluid Mate" className="logo" />
-          <h1>Accesso <span>non abilitato</span></h1>
-          <p className="intro">Questo indirizzo non è collegato a nessun accordo attivo. Scrivi a info@interfluid.net o al tuo commerciale.</p>
+          <Marchio />
+          <h1>Accesso non abilitato</h1>
+          <p className="intro">Questo indirizzo non è collegato a nessun cliente attivo. Scrivi a info@interfluid.net o al tuo commerciale.</p>
           <form action={esci}><button className="btn ghost" type="submit">Esci</button></form>
         </div>
       </main>
@@ -21,44 +35,32 @@ export default async function Home() {
   }
 
   await registra("accesso");
-  const [a] = area.accordi;
+  const oggi = new Date().toISOString().slice(0, 10);
+  const accordo = area.accordi.find((a) => a.validoAl >= oggi) ?? area.accordi[0] ?? null;
+  const nome = area.nome?.split(" ")[0];
 
   return (
     <>
       <header className="top">
-        <div className="wrap">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="logo" src="/interfluid-logo.svg" alt="Interfluid — Your Fluid Mate" />
-          <div className="who">
-            <b>{area.ragioneSociale}</b>
-            <span>{area.nome ? `${area.nome} · ` : ""}{area.email}</span>
-            <form action={esci}><button className="linkbtn" type="submit">Esci</button></form>
+        <div className="wrap top-in">
+          <Marchio />
+          <div className="chi">
+            <span><b>{area.ragioneSociale}</b>{area.nome ? ` · ${area.nome}` : ""}</span>
+            <form action={esci}><button className="linkbtn chiaro" type="submit">Esci</button></form>
           </div>
         </div>
       </header>
-      <main>
-        <div className="wrap">
-          <div className="intro-blk">
-            <div className="eyebrow">Oleodinamica · Banco Digitale</div>
-            {a ? (
-              <>
-                <h1>Accordo quadro <span>{a.brand === "MARZOCCHI" ? "Marzocchi Pompe" : a.brand} {a.anno}</span></h1>
-                <p>I prezzi netti del vostro accordo, la disponibilità a Gallarate e quanto manca al bonus di fine anno. IVA esclusa.</p>
-              </>
-            ) : (
-              <>
-                <h1>Nessun accordo <span>attivo</span></h1>
-                <p>Al momento non ci sono accordi attivi per la vostra azienda. Per informazioni scrivete a info@interfluid.net.</p>
-              </>
-            )}
-          </div>
-          {a && <AreaAccordo a={a} />}
+      <main className="wrap principale">
+        <div className="titolo">
+          <h1>{saluto()}{nome ? `, ${nome}` : ""}. Da dove riprendi?</h1>
+          <span className="muto">Prezzi netti riservati {area.ragioneSociale}, IVA esclusa</span>
         </div>
+        <Banco catalogo={area.catalogo} accordo={accordo} richieste={area.richieste} aggiornatoIl={area.aggiornatoIl} />
       </main>
       <footer>
-        <div className="wrap">
+        <div className="wrap piede">
           <span><b>Interfluid S.r.l.</b> · Via Lazzaretto 10/F, Gallarate (VA) · info@interfluid.net</span>
-          <span className="tag">YOUR FLUID MATE</span>
+          <span>Strumento riservato · non comunicare prezzi a terzi</span>
         </div>
       </footer>
     </>
