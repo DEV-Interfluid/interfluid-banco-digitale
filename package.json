@@ -1,6 +1,6 @@
 {
   "name": "interfluid-banco-digitale",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "scripts": { "dev": "next dev", "build": "next build", "start": "next start", "lint": "eslint" },
   "dependencies": {
