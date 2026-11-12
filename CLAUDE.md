@@ -27,7 +27,7 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
 ## Chi scrive nel database
 
 - Schema: `supabase/01_schema_vetrina_accordi.sql`, `02_dati_accordi_marzocchi_2027.sql`, `03_catalogo_richieste.sql`,
-  `04_sincronizza_catalogo.sql` (funzione usata solo da n8n, chiave segreta della vetrina).
+  `04_sincronizza_catalogo.sql` e `05_avviso_richieste.sql` (funzioni usate solo da n8n, chiave segreta della vetrina).
 - Il cruscotto calcola, la vetrina mostra. Perimetro per cliente (brand/famiglie, stock/su ordine) e prezzi stanno
   nel cruscotto (`banco_perimetro`, parametro `intercompany` per cliente, `calcola_prezzo`). La funzione del
   cruscotto `banco_export(cliente, data)` produce il catalogo pronto da mostrare (solo prezzo netto, mai costi).
@@ -37,7 +37,8 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
   e aggiorna `fatturato` (fatture meno note di credito dall'export settimanale di Mago). Per i clienti con accordo
   non ancora in vigore i prezzi si calcolano alla data di inizio dell'accordo (Marzocchi: 2027-01-01).
 - Le richieste d'ordine si scrivono solo con la funzione `invia_richiesta()`: i prezzi si rileggono dal catalogo,
-  mai dal browser.
+  mai dal browser. Il flusso n8n "Banco Digitale · avviso richieste" (QlZ968WRrjyb2ehB, ogni 5 minuti) manda
+  un'email all'owner HubSpot del cliente (codice_erp) e crea un compito HubSpot; senza owner l'avviso va a G. Sala.
 - I prezzi dell'accordo sono congelati per l'anno: cambiano solo con una decisione di G. Sala.
 
 ## Modo di lavorare
