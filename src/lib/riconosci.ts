@@ -95,12 +95,17 @@ function filtraFirmaMaggioritaria(voci: Voce[]): Voce[] {
   return voci.filter((v) => { const f = firma(v.codice); return !f || f === top; });
 }
 
-/** Il confronto di un codice con la pompa indicata nel testo (sigla o numero del costruttore), se c'è. */
+/** Il confronto di un codice con la pompa indicata nel testo (sigla o numero del costruttore), se c'è.
+ *  Vale anche la sigla scritta senza la serie finale (EIPH2-008RK03 per EIPH2-008RK03-11): il codice è già stato
+ *  scelto (riconosciuto o indicato dal cliente), qui si cerca solo quale delle sue pompe confrontare. */
 export function confrontoPer(v: Voce, testo: string): Confronto | undefined {
   if (!v.confronti?.length) return undefined;
   const n = norm(testo);
   if (!n) return undefined;
-  return v.confronti.find((c) => (c.chiavi ?? []).some((k) => { const x = k.slice(2); return x.length >= 6 && n.includes(x); }));
+  const pieno = (x: string) => x.length >= 6 && n.includes(x);
+  const senzaSerie = (x: string) => n.length >= 8 && x.startsWith(n) && x.length - n.length <= 3;
+  return v.confronti.find((c) => (c.chiavi ?? []).some((k) => pieno(k.slice(2))))
+    ?? v.confronti.find((c) => (c.chiavi ?? []).some((k) => k.startsWith("T:") && senzaSerie(k.slice(2))));
 }
 
 /** Il confronto con una pompa precisa (stesso modello del cliente). */
