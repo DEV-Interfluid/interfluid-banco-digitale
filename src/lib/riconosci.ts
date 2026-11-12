@@ -12,8 +12,10 @@
  * Controllo di sicurezza: un abbinamento R/T tra due direzionali con firma diversa (es. 12 V contro 24 V) si scarta,
  * anche se la tabella delle equivalenze del cruscotto lo riporta.
  * Le alternative di un codice sono gli altri codici del catalogo che condividono con lui una chiave R, T o F.
+ * Pompe (G. Sala 12/11/2026): se la riga indica una pompa del cliente presente nei confronti validati del comparatore,
+ * la riga porta il confronto; tra più alternative si preferisce il verdetto DROP-IN, poi la disponibilità.
  */
-import type { Voce } from "./area";
+import type { Confronto, Voce } from "./area";
 
 export const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
@@ -93,14 +95,27 @@ function filtraFirmaMaggioritaria(voci: Voce[]): Voce[] {
   return voci.filter((v) => { const f = firma(v.codice); return !f || f === top; });
 }
 
+/** Il confronto di un codice con la pompa indicata nel testo (sigla o numero del costruttore), se c'è. */
+export function confrontoPer(v: Voce, testo: string): Confronto | undefined {
+  if (!v.confronti?.length) return undefined;
+  const n = norm(testo);
+  if (!n) return undefined;
+  return v.confronti.find((c) => (c.chiavi ?? []).some((k) => { const x = k.slice(2); return x.length >= 6 && n.includes(x); }));
+}
+
+/** Il confronto con una pompa precisa (stesso modello del cliente). */
+export const confrontoModello = (v: Voce, modello?: string) => (modello ? v.confronti?.find((c) => c.modello === modello) : undefined);
+
+const rangoVerdetto = (c?: Confronto) => (!c ? 1 : c.verdetto === "DROP-IN" ? 0 : 1);
+
 /** Il codice proposto tra più equivalenti: chi copre la quantità, poi chi ha pezzi pronti, poi il prezzo più basso. */
-export function migliore(voci: Voce[], q: number): Voce {
+export function migliore(voci: Voce[], q: number, testo = ""): Voce {
   const punteggio = (v: Voce) => (v.disponibilita === "disponibile" && (v.disponibile ?? 0) >= q ? 0 : v.disponibilita === "disponibile" ? 1 : 2);
-  return voci.slice().sort((a, b) => punteggio(a) - punteggio(b) || (a.esaurimento ? 1 : 0) - (b.esaurimento ? 1 : 0)
+  return voci.slice().sort((a, b) => rangoVerdetto(confrontoPer(a, testo)) - rangoVerdetto(confrontoPer(b, testo)) || punteggio(a) - punteggio(b) || (a.esaurimento ? 1 : 0) - (b.esaurimento ? 1 : 0)
     || (a.prezzo ?? Infinity) - (b.prezzo ?? Infinity) || a.codice.localeCompare(b.codice))[0];
 }
 
-export type Riga = { testo: string; q: number; qEsplicita: boolean; v?: Voce; equivalente: boolean };
+export type Riga = { testo: string; q: number; qEsplicita: boolean; v?: Voce; equivalente: boolean; confronto?: Confronto };
 
 const QTA = /^\d{1,5}(?:[.,]0+)?$/;
 const numeroR = /\bR9\d{8}\b/i;
@@ -147,32 +162,14 @@ export function leggiLista(testo: string, ix: Indice): Riga[] {
         if (t.voci.length || (!trovato.voci.length && sR)) { trovato = t; q = Number(m[2]); qEsplicita = true; celle = [m[1]]; }
       }
     }
-    const v = trovato.voci.length ? migliore(trovato.voci, q) : undefined;
+    const v = trovato.voci.length ? migliore(trovato.voci, q, linea) : undefined;
     const testoRiga = celle.join("  ");
-    const prec = righe[righe.length - 1];
-    // email incollata come colonne su righe alterne (numero R su una riga, sigla sulla successiva): una sola richiesta
-    if (prec && v && prec.v && (prec.v === v || alternativeStesse(ix, prec.v, v)) && !(prec.qEsplicita && qEsplicita)) {
-      prec.testo = `${prec.testo}  ${testoRiga}`;
-      if (qEsplicita) { prec.q = q; prec.qEsplicita = true; }
-      continue;
-    }
-    // riga con il solo numero R e sigla sulla riga successiva (colonne incollate su righe alterne): stessa richiesta
-    if (prec && /^R9\d{8}$/i.test(norm(prec.testo)) && !/^R9\d{8}$/i.test(norm(testoRiga)) && !(prec.qEsplicita && qEsplicita)) {
-      prec.testo = `${prec.testo}  ${testoRiga}`;
-      if (!prec.v && v) { prec.v = v; prec.equivalente = !trovato.esatto; }
-      if (qEsplicita) { prec.q = q; prec.qEsplicita = true; }
-      continue;
-    }
-    if (prec && prec.v && !v && /^R9\d{8}$/i.test(norm(testoRiga)) && !prec.testo.match(numeroR)) {
-      prec.testo = `${testoRiga}  ${prec.testo}`;
-      continue;
-    }
-    righe.push({ testo: testoRiga, q, qEsplicita, v, equivalente: !!v && !trovato.esatto });
+    // (le colonne incollate su righe alterne sono già state unite prima della lettura: ogni riga è una richiesta)
+    righe.push({ testo: testoRiga, q, qEsplicita, v, equivalente: !!v && !trovato.esatto, confronto: v ? confrontoPer(v, linea) : undefined });
   }
   return righe;
 }
 
-const alternativeStesse = (ix: Indice, a: Voce, b: Voce) => alternative(ix, a).includes(b);
 
 /** Per una riga non riconosciuta: codici con sigla quasi uguale (una o due lettere in più o in meno in fondo,
  *  es. ZDR 6 DA2-4X/210Y e ZDR6DA2-4X/210YM). Solo suggerimenti: non vengono mai scelti in automatico. */
