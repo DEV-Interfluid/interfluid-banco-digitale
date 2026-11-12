@@ -50,7 +50,8 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
 - Sicurezza: due direzionali con firma diversa (es. 12 V e 24 V) non sono mai equivalenti, anche se la tabella del
   cruscotto lo dice. I suggerimenti per i codici non riconosciuti non si scelgono mai da soli.
   Eccezione per le pompe (G. Sala 12/11/2026, da rivedere se porta errori): la sigla scritta senza la serie finale
-  (EIPH2-008RK03 per EIPH2-008RK03-11, al massimo 3 caratteri in meno) si riconosce da sola, come equivalente, solo se
+  (EIPH2-008RK03 per EIPH2-008RK03-11, al massimo 3 caratteri in meno) o con la serie scritta con la X dei costruttori
+  (EIPH2-008RK03-1X, PGH3-20 per PGH3-2X) si riconosce da sola, come equivalente, solo se
   corrisponde a una sola sigla di pompa con confronto validato. Se le sigle possibili sono più di una resta un suggerimento.
 - La fascia "Alternative" compare solo se esistono equivalenti nel catalogo del cliente. Nella richiesta resta
   `richiesto`, il codice come l'ha scritto il cliente.

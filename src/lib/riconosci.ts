@@ -69,9 +69,25 @@ export function alternative(ix: Indice, v: Voce): Voce[] {
   return [...s];
 }
 
-/** Pompe: la sigla scritta senza la serie finale (EIPH2-008RK03 per EIPH2-008RK03-11). Decisione G. Sala 12/11/2026:
- *  si riconosce da sola solo se corrisponde a una sola sigla di pompa con confronto validato (al massimo 3 caratteri
- *  in meno in fondo); se le sigle possibili sono più di una resta un suggerimento. Le valvole sono escluse. */
+const cifra = (c: string | undefined) => !!c && c >= "0" && c <= "9";
+
+/** Una sigla di pompa del catalogo (x) corrisponde a quella scritta (n): n è x, o x senza la serie finale (al massimo
+ *  3 caratteri in meno), e la serie si può scrivere con la X dei costruttori (1X = serie 10-19, 2X = 20-29):
+ *  EIPH2-011RK03-1X vale EIPH2-011RK03-11, PGH3-20/011RE07VU2 vale PGH3-2X/011RE07VU2. */
+export function siglaPompa(x: string, n: string): boolean {
+  if (n.length < 8 || n.length > x.length || x.length - n.length > 3) return false;
+  for (let i = 0; i < n.length; i++) {
+    const a = x[i], b = n[i];
+    if (a === b) continue;
+    const serie = cifra(x[i - 1]) && x[i - 1] === n[i - 1] && ((a === "X" && cifra(b)) || (b === "X" && cifra(a)));
+    if (!serie) return false;
+  }
+  return true;
+}
+
+/** Pompe: la sigla scritta senza la serie finale o con la serie "1X" (EIPH2-008RK03 o EIPH2-008RK03-1X per
+ *  EIPH2-008RK03-11). Decisione G. Sala 12/11/2026: si riconosce da sola solo se corrisponde a una sola sigla di
+ *  pompa con confronto validato; se le sigle possibili sono più di una resta un suggerimento. Le valvole sono escluse. */
 function pompaSenzaSerie(ix: Indice, n: string): Voce[] {
   if (n.length < 8) return [];
   let sigla: string | null = null;
@@ -79,7 +95,7 @@ function pompaSenzaSerie(ix: Indice, n: string): Voce[] {
   for (const [k, vv] of ix.chiavi) {
     if (!k.startsWith("T:")) continue;
     const x = k.slice(2);
-    if (x === n || !x.startsWith(n) || x.length - n.length > 3) continue;
+    if (x === n || !siglaPompa(x, n)) continue;
     const pompe = vv.filter((v) => v.confronti?.some((c) => c.chiavi?.includes(k)));
     if (!pompe.length) continue;
     if (sigla && sigla !== x) return [];
@@ -123,7 +139,7 @@ export function confrontoPer(v: Voce, testo: string): Confronto | undefined {
   const n = norm(testo);
   if (!n) return undefined;
   const pieno = (x: string) => x.length >= 6 && n.includes(x);
-  const senzaSerie = (x: string) => n.length >= 8 && x.startsWith(n) && x.length - n.length <= 3;
+  const senzaSerie = (x: string) => siglaPompa(x, n);
   return v.confronti.find((c) => (c.chiavi ?? []).some((k) => pieno(k.slice(2))))
     ?? v.confronti.find((c) => (c.chiavi ?? []).some((k) => k.startsWith("T:") && senzaSerie(k.slice(2))));
 }
