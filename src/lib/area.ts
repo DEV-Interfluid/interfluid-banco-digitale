@@ -5,6 +5,19 @@ import { cache } from "react";
 
 import { creaClientSupabase } from "./supabase/server";
 
+/** Dati tecnici di una pompa nel confronto (dal comparatore del cruscotto). */
+export type DatiPompa = {
+  modello?: string; cilindrata?: number; p_nom?: number; p_picco?: number; rpm_max?: number; rotazione?: string;
+  flangia?: string; albero?: string; l1?: number; porte?: string; aspirazione?: string; mandata?: string; guarnizioni?: string;
+};
+/** Confronto validato tra la pompa del cliente (Rexroth, Eckerle, Voith) e l'alternativa del catalogo. */
+export type Confronto = {
+  modello: string; brand: string; verdetto: "DROP-IN" | "COMPATIBILE CON ADATTATORI" | string; chiavi: string[];
+  cliente: DatiPompa; nostra: DatiPompa;
+  adattamenti: { classe?: string; lanterna?: string; semigiunto?: string; aspirazione?: string; mandata?: string; puo_invertire_rotazione?: boolean };
+  avvisi: string[];
+};
+
 /** Una riga del catalogo del cliente: prezzo netto (null = su richiesta) e disponibilità. */
 export type Voce = {
   codice: string; descrizione: string | null; brand: string; serie: string | null;
@@ -12,6 +25,8 @@ export type Voce = {
   disponibilita: "disponibile" | "da_ordinare" | null; esaurimento: boolean; accordo: boolean;
   /** chiavi di equivalenza dal cruscotto: numeri R (R:...) e sigle (T:...) degli equivalenti */
   chiavi: string[];
+  /** confronti tecnici validati (pompe): presenti solo per le alternative del comparatore */
+  confronti: Confronto[];
 };
 export type Accordo = {
   id: number; brand: string; anno: number; validoDal: string; validoAl: string;
@@ -50,7 +65,7 @@ export const caricaArea = cache(async (): Promise<Area | "non_abilitato"> => {
   const catalogo: Voce[] = [];
   for (let da = 0; ; da += PAGINA) {
     const { data: righe, error: e } = await supabase.from("catalogo")
-      .select("codice, descrizione, brand, serie, prezzo_netto, modalita, disponibile, disponibilita, esaurimento, accordo, chiavi")
+      .select("codice, descrizione, brand, serie, prezzo_netto, modalita, disponibile, disponibilita, esaurimento, accordo, chiavi, confronti")
       .order("codice").range(da, da + PAGINA - 1);
     if (e) throw new Error("Lettura del catalogo non riuscita");
     for (const r of righe ?? []) {
@@ -58,7 +73,7 @@ export const caricaArea = cache(async (): Promise<Area | "non_abilitato"> => {
         codice: r.codice, descrizione: r.descrizione, brand: r.brand, serie: r.serie,
         prezzo: r.prezzo_netto == null ? null : Number(r.prezzo_netto), modalita: r.modalita,
         disponibile: r.disponibile == null ? null : Number(r.disponibile), disponibilita: r.disponibilita,
-        esaurimento: r.esaurimento, accordo: r.accordo, chiavi: r.chiavi ?? [],
+        esaurimento: r.esaurimento, accordo: r.accordo, chiavi: r.chiavi ?? [], confronti: (r.confronti ?? []) as Confronto[],
       });
     }
     if (!righe || righe.length < PAGINA) break;
@@ -79,7 +94,7 @@ export const caricaArea = cache(async (): Promise<Area | "non_abilitato"> => {
       for (const r of (a.listino ?? []) as { codice: string; serie: string | null; prezzo_netto: number; a_magazzino: boolean }[]) {
         catalogo.push({
           codice: r.codice, descrizione: null, brand: a.brand, serie: r.serie, prezzo: Number(r.prezzo_netto), modalita: "stock",
-          disponibile: null, disponibilita: r.a_magazzino ? "disponibile" : "da_ordinare", esaurimento: false, accordo: true, chiavi: [],
+          disponibile: null, disponibilita: r.a_magazzino ? "disponibile" : "da_ordinare", esaurimento: false, accordo: true, chiavi: [], confronti: [],
         });
       }
     }

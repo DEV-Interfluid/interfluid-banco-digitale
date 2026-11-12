@@ -5,7 +5,9 @@ import { Fragment, useMemo, useState, useTransition } from "react";
 import { inviaRichiesta } from "@/app/azioni";
 import type { Accordo, Richiesta, Voce } from "@/lib/area";
 import { data, euro, numero, proiezione } from "@/lib/formato";
-import { alternative, creaIndice, leggiLista, norm, suggerimenti, type Riga } from "@/lib/riconosci";
+import { alternative, confrontoModello, confrontoPer, creaIndice, leggiLista, norm, suggerimenti, type Riga } from "@/lib/riconosci";
+import type { Confronto } from "@/lib/area";
+import { PannelloConfronto, Verdetto } from "./confronto";
 
 const chiave = (s: string) => s.toUpperCase().replace(/[\s\-_/.]+/g, "").replace(/,/g, "");
 
@@ -36,6 +38,7 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo
   const [esito, setEsito] = useState<{ ok: boolean; msg: string } | null>(null);
   const [inCorso, avvia] = useTransition();
 
+  const [aperto, setAperto] = useState<{ v: Voce; c: Confronto } | null>(null);
   const [cerca, setCerca] = useState("");
   const [fb, setFb] = useState("");
   const [soloPronti, setSoloPronti] = useState(false);
@@ -60,7 +63,9 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo
     setRighe((rr) => rr.map((r, j) => (j === i ? { ...r, q: Math.max(1, n || 1) } : r)));
   }
   function togli(i: number) { setRighe((rr) => rr.filter((_, j) => j !== i)); }
-  function scegli(i: number, v: Voce) { setRighe((rr) => rr.map((r, j) => (j === i ? { ...r, v, equivalente: true } : r))); }
+  function scegli(i: number, v: Voce) {
+    setRighe((rr) => rr.map((r, j) => (j === i ? { ...r, v, equivalente: true, confronto: confrontoModello(v, r.confronto?.modello) ?? confrontoPer(v, r.testo) } : r)));
+  }
   function invia() {
     avvia(async () => {
       const r = await inviaRichiesta(righe.map((x) => ({ codice: x.v?.codice ?? x.testo, qta: x.q, richiesto: x.testo })), rif, note);
@@ -105,6 +110,9 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo
                         <td className="code">
                           {r.v?.codice ?? r.testo}
                           {r.v && mostraRichiesto && <span className="richiesto">richiesto: {r.testo}</span>}
+                          {r.v && r.confronto && (
+                            <span className="conf-r"><Verdetto c={r.confronto} /><button type="button" className="linkbtn" onClick={() => setAperto({ v: r.v!, c: r.confronto! })}>Confronta</button></span>
+                          )}
                         </td>
                         <td className="hide-s">{r.v ? <><span className="marca">{r.v.brand}</span> {r.v.descrizione ?? r.v.serie ?? ""}</> : "Non riconosciuto: lo quota il commerciale"}</td>
                         <td className="r"><input className="qta" type="number" min={1} aria-label={`Quantità ${r.testo}`} value={r.q} onChange={(e) => cambiaQ(i, Number(e.target.value))} /></td>
@@ -121,7 +129,7 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo
                               {alts.map((a) => (
                                 <button type="button" key={a.codice} className="alt-c" onClick={() => scegli(i, a)} title="Usa questo codice">
                                   <span className="code">{a.codice}</span>
-                                  <span className="alt-m"><span className="marca">{a.brand}</span>{a.prezzo != null ? <span className="num">€ {numero(a.prezzo)}</span> : <span className="muto">su richiesta</span>}<Disp v={a} q={r.q} />{a.esaurimento && <span className="pill">Fine serie</span>}</span>
+                                  <span className="alt-m"><span className="marca">{a.brand}</span>{(() => { const ca = confrontoModello(a, r.confronto?.modello) ?? confrontoPer(a, r.testo); return ca ? <Verdetto c={ca} /> : null; })()}{a.prezzo != null ? <span className="num">€ {numero(a.prezzo)}</span> : <span className="muto">su richiesta</span>}<Disp v={a} q={r.q} />{a.esaurimento && <span className="pill">Fine serie</span>}</span>
                                 </button>
                               ))}
                             </div>
@@ -195,6 +203,7 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo
           </table>
         </div>
       </section>
+      {aperto && <PannelloConfronto v={aperto.v} c={aperto.c} onChiudi={() => setAperto(null)} />}
     </>
   );
 }

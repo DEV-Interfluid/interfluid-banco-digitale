@@ -27,8 +27,8 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
 ## Chi scrive nel database
 
 - Schema: `supabase/01_schema_vetrina_accordi.sql`, `02_dati_accordi_marzocchi_2027.sql`, `03_catalogo_richieste.sql`,
-  `04_sincronizza_catalogo.sql`, `05_avviso_richieste.sql`, `06_chiavi_equivalenza.sql` (funzioni usate solo da n8n,
-  chiave segreta della vetrina).
+  `04_sincronizza_catalogo.sql`, `05_avviso_richieste.sql`, `06_chiavi_equivalenza.sql`, `07_confronti_tecnici.sql`
+  (funzioni usate solo da n8n, chiave segreta della vetrina).
 - Il cruscotto calcola, la vetrina mostra. Perimetro per cliente (brand/famiglie, stock/su ordine) e prezzi stanno
   nel cruscotto (`banco_perimetro`, parametro `intercompany` per cliente, `calcola_prezzo`). La funzione del
   cruscotto `banco_export(cliente, data)` produce il catalogo pronto da mostrare (solo prezzo netto, mai costi).
@@ -51,6 +51,16 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
   cruscotto lo dice. I suggerimenti per i codici non riconosciuti non si scelgono mai da soli.
 - La fascia "Alternative" compare solo se esistono equivalenti nel catalogo del cliente. Nella richiesta resta
   `richiesto`, il codice come l'ha scritto il cliente.
+
+## Confronti tecnici delle pompe (G. Sala 12/11/2026)
+
+- `catalogo.confronti`: per le alternative Hydraut a ingranaggi interni, le pompe Rexroth, Eckerle e Voith che
+  sostituiscono, dal comparatore del cruscotto (`banco_confronti_codice`): solo coppie validate con verdetto DROP-IN o
+  COMPATIBILE CON ADATTATORI, solo dati tecnici. Il comparatore resta l'unica fonte del giudizio: il Banco non lo ricalcola.
+- Nella lista: verdetto in una riga e "Confronta", che apre il pannello affiancato (`src/components/confronto.tsx`)
+  con le differenze evidenziate e cosa serve per montarla. Il kit di adattamento lo quota il commerciale.
+- Il perimetro decide quali famiglie hanno alternative (`banco_perimetro.alternative`): le alternative validate senza
+  prezzo né giacenza restano a catalogo con prezzo "su richiesta".
 
 ## Modo di lavorare
 
