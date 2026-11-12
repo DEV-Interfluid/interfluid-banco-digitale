@@ -1,6 +1,6 @@
 import { ModuloAccesso } from "./modulo";
 
-export const metadata = { title: "Accesso · Banco Digitale Interfluid" };
+export const metadata = { title: "Accesso · Banco Interfluid" };
 
 const ERRORI: Record<string, string> = {
   link: "Il link non è più valido o è già stato usato. Chiedine uno nuovo.",
@@ -11,11 +11,13 @@ export default async function Accesso({ searchParams }: { searchParams: Promise<
   return (
     <main className="accesso">
       <div className="scheda">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/interfluid-logo.svg" alt="Interfluid — Your Fluid Mate" className="logo" />
-        <div className="eyebrow">Area riservata clienti</div>
-        <h1>Banco <span>Digitale</span></h1>
-        <p className="intro">I prezzi del vostro accordo, la disponibilità a Gallarate e l&apos;avanzamento verso il bonus di fine anno.</p>
+        <span className="marchio">
+          <span className="anello" aria-hidden="true" />
+          <span className="nome">Banco</span>
+          <span className="di">Interfluid</span>
+        </span>
+        <h1>Accedi al tuo banco</h1>
+        <p className="intro">Prezzi netti riservati, disponibilità a Gallarate e richieste d&apos;ordine, in un solo posto.</p>
         <ModuloAccesso errore={errore ? ERRORI[errore] ?? ERRORI.link : undefined} />
       </div>
     </main>

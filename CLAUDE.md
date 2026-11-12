@@ -1,8 +1,11 @@
 # interfluid-banco-digitale — area riservata clienti con accordo
 
-Sito per i clienti Interfluid con un accordo quadro (dal 2027: Hydroservice e Faro, pompe Marzocchi).
-Il cliente vede solo: prezzi netti del suo accordo, disponibilità a Gallarate, fatturato dell'anno e
-avanzamento verso il bonus. Proprietario e decisore: Giampaolo Sala. Indirizzo: banco.digitale.interfluid.net.
+Il "Banco": strumento per i distributori fidelizzati Interfluid (decisione G. Sala, 12/11/2026), estensione del
+cruscotto commerciale. Clienti: Parmafluid 009073 (intercompany), Hydroservice 001684 e Faro Oleodinamica 000061
+(accordo Marzocchi dal 1/1/2027). Il cliente vede solo: il suo catalogo con prezzi netti, disponibilità, le sue
+richieste d'ordine e, se ha un accordo, fatturato e avanzamento verso il bonus. Invia richieste d'ordine che il
+commerciale (owner HubSpot) conferma: una richiesta non è un ordine. Proprietario e decisore: Giampaolo Sala.
+Indirizzo: banco.digitale.interfluid.net.
 
 ## Perché un database separato (decisione G. Sala, 07/11/2026)
 
@@ -23,14 +26,20 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
 
 ## Chi scrive nel database
 
-- Schema e dati iniziali: `supabase/01_schema_vetrina_accordi.sql`, `supabase/02_dati_accordi_marzocchi_2027.sql`.
+- Schema: `supabase/01_schema_vetrina_accordi.sql`, `02_dati_accordi_marzocchi_2027.sql`, `03_catalogo_richieste.sql`.
+- Il cruscotto calcola, la vetrina mostra. Perimetro per cliente (brand/famiglie, stock/su ordine) e prezzi stanno
+  nel cruscotto (`banco_perimetro`, parametro `intercompany` per cliente, `calcola_prezzo`). La funzione del
+  cruscotto `banco_export(cliente, data)` produce il catalogo pronto da mostrare (solo prezzo netto, mai costi).
 - Aggiornamenti: solo il flusso n8n "Banco Digitale · sincronizzazione" (notte), con la chiave di servizio del
-  progetto vetrina conservata solo in n8n. Aggiorna `listino.a_magazzino` / `disponibilita_al` (giacenze del
-  cruscotto) e `fatturato` (fatture meno note di credito dall'export settimanale di Mago).
+  progetto vetrina conservata solo in n8n. Sostituisce le righe del cliente in `catalogo`, scrive `sincronizzazioni`
+  e aggiorna `fatturato` (fatture meno note di credito dall'export settimanale di Mago). Per i clienti con accordo
+  non ancora in vigore i prezzi si calcolano alla data di inizio dell'accordo (Marzocchi: 2027-01-01).
+- Le richieste d'ordine si scrivono solo con la funzione `invia_richiesta()`: i prezzi si rileggono dal catalogo,
+  mai dal browser.
 - I prezzi dell'accordo sono congelati per l'anno: cambiano solo con una decisione di G. Sala.
 
 ## Modo di lavorare
 
-Testi in italiano, chiari. Stile Interfluid (Interfluid_Style_Guide v1.0): Quicksand, navy #2D3853, blu #5279C0,
-arancio oleodinamica #F7A82C. Una pull request per attività, versione in package.json. Giampaolo non è uno
+Testi in italiano, chiari. Stile del concept Banco (decisione G. Sala, 12/11/2026): Urbanist e JetBrains Mono per
+i codici, testata scura #191C1F, oro #F8AB2F, fondo #F2F4F5, carte bianche con bordo #E4E7E9 e raggio 12. Una pull request per attività, versione in package.json. Giampaolo non è uno
 sviluppatore: istruzioni passo per passo quando deve fare qualcosa.
