@@ -10,6 +10,8 @@ export type Voce = {
   codice: string; descrizione: string | null; brand: string; serie: string | null;
   prezzo: number | null; modalita: "stock" | "su_ordine"; disponibile: number | null;
   disponibilita: "disponibile" | "da_ordinare" | null; esaurimento: boolean; accordo: boolean;
+  /** chiavi di equivalenza dal cruscotto: numeri R (R:...) e sigle (T:...) degli equivalenti */
+  chiavi: string[];
 };
 export type Accordo = {
   id: number; brand: string; anno: number; validoDal: string; validoAl: string;
@@ -48,7 +50,7 @@ export const caricaArea = cache(async (): Promise<Area | "non_abilitato"> => {
   const catalogo: Voce[] = [];
   for (let da = 0; ; da += PAGINA) {
     const { data: righe, error: e } = await supabase.from("catalogo")
-      .select("codice, descrizione, brand, serie, prezzo_netto, modalita, disponibile, disponibilita, esaurimento, accordo")
+      .select("codice, descrizione, brand, serie, prezzo_netto, modalita, disponibile, disponibilita, esaurimento, accordo, chiavi")
       .order("codice").range(da, da + PAGINA - 1);
     if (e) throw new Error("Lettura del catalogo non riuscita");
     for (const r of righe ?? []) {
@@ -56,7 +58,7 @@ export const caricaArea = cache(async (): Promise<Area | "non_abilitato"> => {
         codice: r.codice, descrizione: r.descrizione, brand: r.brand, serie: r.serie,
         prezzo: r.prezzo_netto == null ? null : Number(r.prezzo_netto), modalita: r.modalita,
         disponibile: r.disponibile == null ? null : Number(r.disponibile), disponibilita: r.disponibilita,
-        esaurimento: r.esaurimento, accordo: r.accordo,
+        esaurimento: r.esaurimento, accordo: r.accordo, chiavi: r.chiavi ?? [],
       });
     }
     if (!righe || righe.length < PAGINA) break;
@@ -77,7 +79,7 @@ export const caricaArea = cache(async (): Promise<Area | "non_abilitato"> => {
       for (const r of (a.listino ?? []) as { codice: string; serie: string | null; prezzo_netto: number; a_magazzino: boolean }[]) {
         catalogo.push({
           codice: r.codice, descrizione: null, brand: a.brand, serie: r.serie, prezzo: Number(r.prezzo_netto), modalita: "stock",
-          disponibile: null, disponibilita: r.a_magazzino ? "disponibile" : "da_ordinare", esaurimento: false, accordo: true,
+          disponibile: null, disponibilita: r.a_magazzino ? "disponibile" : "da_ordinare", esaurimento: false, accordo: true, chiavi: [],
         });
       }
     }

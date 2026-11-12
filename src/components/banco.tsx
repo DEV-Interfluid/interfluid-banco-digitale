@@ -1,26 +1,17 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 
 import { inviaRichiesta } from "@/app/azioni";
 import type { Accordo, Richiesta, Voce } from "@/lib/area";
 import { data, euro, numero, proiezione } from "@/lib/formato";
+import { alternative, creaIndice, leggiLista, norm, suggerimenti, type Riga } from "@/lib/riconosci";
 
 const chiave = (s: string) => s.toUpperCase().replace(/[\s\-_/.]+/g, "").replace(/,/g, "");
 
-type Riga = { testo: string; q: number; v?: Voce };
-
-/** Legge una lista incollata: un codice per riga, quantità facoltativa dopo il codice. */
-function leggi(testo: string, indice: Map<string, Voce>): Riga[] {
-  return testo.split(/[\n;\t]+/).map((x) => x.trim()).filter((x) => x.length >= 2).map((riga) => {
-    let codice = riga, q = 1;
-    if (!indice.has(chiave(riga))) {
-      const m = riga.match(/^(.*\S)\s+(\d{1,5})$/);
-      if (m) { codice = m[1]; q = Number(m[2]); }
-    }
-    return { testo: codice, q, v: indice.get(chiave(codice)) };
-  });
-}
+/** Alternative in ordine: prima chi ha pezzi pronti, poi il prezzo più basso. */
+const ordina = (l: Voce[]) => l.slice().sort((a, b) => (a.disponibilita === "disponibile" ? 0 : 1) - (b.disponibilita === "disponibile" ? 0 : 1)
+  || (a.esaurimento ? 1 : 0) - (b.esaurimento ? 1 : 0) || (a.prezzo ?? Infinity) - (b.prezzo ?? Infinity)).slice(0, 6);
 
 function Disp({ v, q = 1 }: { v: Voce; q?: number }) {
   if (v.modalita === "su_ordine") return <span className="pill blu">Su ordine</span>;
@@ -35,7 +26,7 @@ function Disp({ v, q = 1 }: { v: Voce; q?: number }) {
 const Prezzo = ({ v }: { v: Voce }) => (v.prezzo == null ? <span className="muto">Su richiesta</span> : <>{numero(v.prezzo)}</>);
 
 export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo: Voce[]; accordo: Accordo | null; richieste: Richiesta[]; aggiornatoIl: string | null }) {
-  const indice = useMemo(() => new Map(catalogo.map((v) => [chiave(v.codice), v])), [catalogo]);
+  const ix = useMemo(() => creaIndice(catalogo), [catalogo]);
   const brandList = useMemo(() => [...new Set(catalogo.map((v) => v.brand))].sort(), [catalogo]);
 
   const [testo, setTesto] = useState("");
@@ -59,9 +50,9 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo
     (!fb || v.brand === fb) && (!soloPronti || v.disponibilita === "disponibile"));
   const mostrati = visibili.slice(0, 300);
 
-  function analizza(t = testo) { setRighe(leggi(t, indice)); setEsito(null); }
+  function analizza(t = testo) { setRighe(leggiLista(t, ix)); setEsito(null); }
   function aggiungi(codice: string) {
-    const t = (testo.trim() ? testo.trim() + "\n" : "") + codice + " 1";
+    const t = (testo.trim() ? testo.trim() + "\n" : "") + codice + "\t1";
     setTesto(t); analizza(t);
     document.getElementById("lista")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -69,9 +60,10 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo
     setRighe((rr) => rr.map((r, j) => (j === i ? { ...r, q: Math.max(1, n || 1) } : r)));
   }
   function togli(i: number) { setRighe((rr) => rr.filter((_, j) => j !== i)); }
+  function scegli(i: number, v: Voce) { setRighe((rr) => rr.map((r, j) => (j === i ? { ...r, v, equivalente: true } : r))); }
   function invia() {
     avvia(async () => {
-      const r = await inviaRichiesta(righe.map((x) => ({ codice: x.v?.codice ?? x.testo, qta: x.q })), rif, note);
+      const r = await inviaRichiesta(righe.map((x) => ({ codice: x.v?.codice ?? x.testo, qta: x.q, richiesto: x.testo })), rif, note);
       if (r.errore) setEsito({ ok: false, msg: r.errore });
       else { setEsito({ ok: true, msg: `Richiesta n. ${r.id} inviata. Il tuo commerciale la conferma e ti risponde con disponibilità e consegna.` }); setRighe([]); setTesto(""); setRif(""); setNote(""); }
     });
@@ -85,7 +77,7 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo
           <textarea id="lista" rows={6} spellCheck={false} value={testo} onChange={(e) => setTesto(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) analizza(); }}
             placeholder={"HD-4WE6J61B/CG24N9K4   10\n45DFLR3RPA12N00   2"} />
-          <span className="aiuto">Un codice per riga, con la quantità dopo il codice se vuoi. Puoi incollare da Excel o da un ordine.</span>
+          <span className="aiuto">Incolla da un'email, da Excel o da un ordine: un articolo per riga, con la quantità se vuoi. Riconosciamo anche numeri R e sigle Rexroth, con o senza spazi e trattini.</span>
         </div>
         <div className="lista-az">
           <label htmlFor="rif" className="etichetta">Tuo riferimento (facoltativo)</label>
@@ -99,22 +91,46 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo
 
       {righe.length > 0 && (
         <section className="card" aria-labelledby="risT">
-          <div className="card-h"><h2 id="risT">La tua lista</h2><span className="muto">{righe.length} righe · prezzi netti per pezzo, IVA esclusa</span></div>
+          <div className="card-h"><h2 id="risT">La tua lista</h2><span className="muto">{righe.length} righe · {righe.filter((r) => r.v).length} riconosciute{righe.some((r) => r.v && r.equivalente) ? ` (${righe.filter((r) => r.v && r.equivalente).length} con un equivalente)` : ""} · prezzi netti per pezzo, IVA esclusa</span></div>
           <div className="tbox">
             <table>
               <thead><tr><th>Codice</th><th className="hide-s">Descrizione</th><th className="r">Q.tà</th><th className="r">Prezzo €</th><th className="r">Totale €</th><th>Disponibilità</th><th /></tr></thead>
               <tbody>
-                {righe.map((r, i) => (
-                  <tr key={i} className={r.v ? "" : "miss"}>
-                    <td className="code">{r.v?.codice ?? r.testo}</td>
-                    <td className="hide-s">{r.v ? (r.v.descrizione ?? r.v.serie ?? r.v.brand) : "Non nel tuo catalogo: lo quota il commerciale"}</td>
-                    <td className="r"><input className="qta" type="number" min={1} aria-label={`Quantità ${r.testo}`} value={r.q} onChange={(e) => cambiaQ(i, Number(e.target.value))} /></td>
-                    <td className="r num">{r.v ? <Prezzo v={r.v} /> : "–"}</td>
-                    <td className="r num">{r.v?.prezzo != null ? numero(r.v.prezzo * r.q) : "–"}</td>
-                    <td>{r.v ? <Disp v={r.v} q={r.q} /> : <span className="pill amb">Da quotare</span>}{r.v?.esaurimento && <span className="pill">Fine serie</span>}</td>
-                    <td><button type="button" className="linkbtn" aria-label={`Togli ${r.testo}`} onClick={() => togli(i)}>Togli</button></td>
-                  </tr>
-                ))}
+                {righe.map((r, i) => {
+                  const alts = ordina(r.v ? alternative(ix, r.v) : suggerimenti(ix, r.testo));
+                  const mostraRichiesto = !r.v || norm(r.testo) !== norm(r.v.codice);
+                  return (
+                    <Fragment key={i}>
+                      <tr className={(r.v ? "" : "miss") + (alts.length ? " con-alt" : "")}>
+                        <td className="code">
+                          {r.v?.codice ?? r.testo}
+                          {r.v && mostraRichiesto && <span className="richiesto">richiesto: {r.testo}</span>}
+                        </td>
+                        <td className="hide-s">{r.v ? <><span className="marca">{r.v.brand}</span> {r.v.descrizione ?? r.v.serie ?? ""}</> : "Non riconosciuto: lo quota il commerciale"}</td>
+                        <td className="r"><input className="qta" type="number" min={1} aria-label={`Quantità ${r.testo}`} value={r.q} onChange={(e) => cambiaQ(i, Number(e.target.value))} /></td>
+                        <td className="r num">{r.v ? <Prezzo v={r.v} /> : "–"}</td>
+                        <td className="r num">{r.v?.prezzo != null ? numero(r.v.prezzo * r.q) : "–"}</td>
+                        <td>{r.v ? <Disp v={r.v} q={r.q} /> : <span className="pill amb">Da quotare</span>}{r.v?.esaurimento && <span className="pill">Fine serie</span>}</td>
+                        <td><button type="button" className="linkbtn" aria-label={`Togli ${r.testo}`} onClick={() => togli(i)}>Togli</button></td>
+                      </tr>
+                      {alts.length > 0 && (
+                        <tr className="alt">
+                          <td colSpan={7}>
+                            <div className="alt-band">
+                              <span className="alt-t">{r.v ? "Alternative" : "Possibili corrispondenze, da confermare"}</span>
+                              {alts.map((a) => (
+                                <button type="button" key={a.codice} className="alt-c" onClick={() => scegli(i, a)} title="Usa questo codice">
+                                  <span className="code">{a.codice}</span>
+                                  <span className="alt-m"><span className="marca">{a.brand}</span>{a.prezzo != null ? <span className="num">€ {numero(a.prezzo)}</span> : <span className="muto">su richiesta</span>}<Disp v={a} q={r.q} />{a.esaurimento && <span className="pill">Fine serie</span>}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
               <tfoot><tr><td colSpan={4}>Totale {prezzate.length} {prezzate.length === 1 ? "riga" : "righe"} con prezzo{daQuotare > 0 ? ` · ${daQuotare} da quotare` : ""}</td><td className="r num">{numero(totale)}</td><td colSpan={2} /></tr></tfoot>
             </table>

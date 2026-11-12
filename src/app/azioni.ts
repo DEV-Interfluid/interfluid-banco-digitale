@@ -11,9 +11,9 @@ export type EsitoRichiesta = { id: number | null; errore: string | null };
  * Invia una richiesta d'ordine. Il browser manda solo codici e quantità: i prezzi
  * li rilegge il database dal catalogo del cliente (funzione invia_richiesta).
  */
-export async function inviaRichiesta(righe: { codice: string; qta: number }[], riferimento: string, note: string): Promise<EsitoRichiesta> {
+export async function inviaRichiesta(righe: { codice: string; qta: number; richiesto?: string }[], riferimento: string, note: string): Promise<EsitoRichiesta> {
   const pulite = righe
-    .map((r) => ({ codice: String(r.codice).trim().slice(0, 80), qta: Math.max(0, Math.round(Number(r.qta) * 100) / 100) }))
+    .map((r) => ({ codice: String(r.codice).trim().slice(0, 80), qta: Math.max(0, Math.round(Number(r.qta) * 100) / 100), richiesto: String(r.richiesto ?? "").trim().slice(0, 200) }))
     .filter((r) => r.codice && r.qta > 0)
     .slice(0, 200);
   if (pulite.length === 0) return { id: null, errore: "La richiesta è vuota." };
