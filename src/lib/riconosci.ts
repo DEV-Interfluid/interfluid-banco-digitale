@@ -69,8 +69,27 @@ export function alternative(ix: Indice, v: Voce): Voce[] {
   return [...s];
 }
 
-/** Candidati per un testo (una cella): prima il codice esatto, poi numero R, sigla, firma. */
-function candidati(ix: Indice, testo: string, fLinea: string | null = null): { voci: Voce[]; esatto: boolean } {
+/** Pompe: la sigla scritta senza la serie finale (EIPH2-008RK03 per EIPH2-008RK03-11). Decisione G. Sala 12/11/2026:
+ *  si riconosce da sola solo se corrisponde a una sola sigla di pompa con confronto validato (al massimo 3 caratteri
+ *  in meno in fondo); se le sigle possibili sono più di una resta un suggerimento. Le valvole sono escluse. */
+function pompaSenzaSerie(ix: Indice, n: string): Voce[] {
+  if (n.length < 8) return [];
+  let sigla: string | null = null;
+  let voci: Voce[] = [];
+  for (const [k, vv] of ix.chiavi) {
+    if (!k.startsWith("T:")) continue;
+    const x = k.slice(2);
+    if (x === n || !x.startsWith(n) || x.length - n.length > 3) continue;
+    const pompe = vv.filter((v) => v.confronti?.some((c) => c.chiavi?.includes(k)));
+    if (!pompe.length) continue;
+    if (sigla && sigla !== x) return [];
+    sigla = x; voci = pompe;
+  }
+  return voci;
+}
+
+/** Candidati per un testo (una cella): prima il codice esatto, poi numero R, sigla, firma, sigla di pompa senza serie. */
+function candidati(ix: Indice, testo: string, fLinea: string | null = null): { voci: Voce[]; esatto: boolean; parziale?: boolean } {
   const n = norm(testo);
   if (n.length < 3) return { voci: [], esatto: false };
   const esatti = ix.chiavi.get("C:" + n) ?? (n.startsWith("HD") ? ix.chiavi.get("C:" + n.slice(2)) : undefined);
@@ -80,6 +99,7 @@ function candidati(ix: Indice, testo: string, fLinea: string | null = null): { v
   // per un numero R la firma si ricava dalla sigla degli equivalenti con chiave T; per una sigla, dalla sigla stessa
   for (const k of ["R:" + n, "T:" + n]) for (const v of ix.chiavi.get(k) ?? []) if (compatibili(f, firma(v.codice))) s.add(v);
   if (f) for (const v of ix.chiavi.get("F:" + f) ?? []) s.add(v);
+  if (!s.size) { const p = pompaSenzaSerie(ix, n); if (p.length) return { voci: p, esatto: false, parziale: true }; }
   return { voci: filtraFirmaMaggioritaria([...s]), esatto: false };
 }
 
@@ -153,7 +173,7 @@ export function leggiLista(testo: string, ix: Indice): Riga[] {
     tentativi.push(...celle, celle.join(" "));
     // la sigla scritta nella riga (se è una direzionale) vincola taglia, cursore e tensione anche per il numero R
     const fLinea = [...celle, celle.join(" ")].map(firma).find(Boolean) ?? null;
-    let trovato: { voci: Voce[]; esatto: boolean } = { voci: [], esatto: false };
+    let trovato: { voci: Voce[]; esatto: boolean; parziale?: boolean } = { voci: [], esatto: false };
     for (const t of tentativi) { trovato = candidati(ix, t, fLinea); if (trovato.voci.length) break; }
     // numero finale dopo uno spazio: è una quantità solo se la riga intera non è già un codice esatto
     // (le Hydraut finiscono con " 10", che non è una quantità)
@@ -164,13 +184,17 @@ export function leggiLista(testo: string, ix: Indice): Riga[] {
         const fT = firma(m[1].replace(numeroR, "")) ?? fLinea;
         let t = candidati(ix, m[1], fT);
         if (!t.voci.length && sR) t = candidati(ix, sR[0], fT);
-        if (t.voci.length || (!trovato.voci.length && sR)) { trovato = t; q = Number(m[2]); qEsplicita = true; celle = [m[1]]; }
+        // una sigla completa trovata (EIPH2-008RK03 11 = EIPH2-008RK03-11) vale più della stessa sigla senza serie con quantità
+        const peggiora = trovato.voci.length && !trovato.parziale && t.parziale;
+        if (!peggiora && (t.voci.length || (!trovato.voci.length && sR))) { trovato = t; q = Number(m[2]); qEsplicita = true; celle = [m[1]]; }
       }
     }
-    const v = trovato.voci.length ? migliore(trovato.voci, q, linea) : undefined;
+    // il testo del codice senza la quantità: serve a trovare la pompa da confrontare anche senza la serie finale
+    const testoCodice = celle.join(" ");
+    const v = trovato.voci.length ? migliore(trovato.voci, q, testoCodice) : undefined;
     const testoRiga = celle.join("  ");
     // (le colonne incollate su righe alterne sono già state unite prima della lettura: ogni riga è una richiesta)
-    righe.push({ testo: testoRiga, q, qEsplicita, v, equivalente: !!v && !trovato.esatto, confronto: v ? confrontoPer(v, linea) : undefined });
+    righe.push({ testo: testoRiga, q, qEsplicita, v, equivalente: !!v && !trovato.esatto, confronto: v ? confrontoPer(v, testoCodice) ?? confrontoPer(v, linea) : undefined });
   }
   return righe;
 }
