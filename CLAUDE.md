@@ -27,7 +27,8 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
 ## Chi scrive nel database
 
 - Schema: `supabase/01_schema_vetrina_accordi.sql`, `02_dati_accordi_marzocchi_2027.sql`, `03_catalogo_richieste.sql`,
-  `04_sincronizza_catalogo.sql` e `05_avviso_richieste.sql` (funzioni usate solo da n8n, chiave segreta della vetrina).
+  `04_sincronizza_catalogo.sql`, `05_avviso_richieste.sql`, `06_chiavi_equivalenza.sql` (funzioni usate solo da n8n,
+  chiave segreta della vetrina).
 - Il cruscotto calcola, la vetrina mostra. Perimetro per cliente (brand/famiglie, stock/su ordine) e prezzi stanno
   nel cruscotto (`banco_perimetro`, parametro `intercompany` per cliente, `calcola_prezzo`). La funzione del
   cruscotto `banco_export(cliente, data)` produce il catalogo pronto da mostrare (solo prezzo netto, mai costi).
@@ -40,6 +41,16 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
   mai dal browser. Il flusso n8n "Banco Digitale · avviso richieste" (QlZ968WRrjyb2ehB, ogni 5 minuti) manda
   un'email all'owner HubSpot del cliente (codice_erp) e crea un compito HubSpot; senza owner l'avviso va a G. Sala.
 - I prezzi dell'accordo sono congelati per l'anno: cambiano solo con una decisione di G. Sala.
+
+## Riconoscimento dei codici e alternative (G. Sala 12/11/2026)
+
+- `src/lib/riconosci.ts`: una riga incollata = una richiesta; spazi, trattini e barre non contano. Si riconosce dal
+  codice del catalogo, dai numeri R e dalle sigle Rexroth (`catalogo.chiavi`, dalla tabella `alternative_codice` del
+  cruscotto) e, per le direzionali 4WE 6/4WE 10, dalla firma taglia + cursore + tensione.
+- Sicurezza: due direzionali con firma diversa (es. 12 V e 24 V) non sono mai equivalenti, anche se la tabella del
+  cruscotto lo dice. I suggerimenti per i codici non riconosciuti non si scelgono mai da soli.
+- La fascia "Alternative" compare solo se esistono equivalenti nel catalogo del cliente. Nella richiesta resta
+  `richiesto`, il codice come l'ha scritto il cliente.
 
 ## Modo di lavorare
 
