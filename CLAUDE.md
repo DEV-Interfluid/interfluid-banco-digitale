@@ -26,12 +26,14 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
 
 ## Chi scrive nel database
 
-- Schema: `supabase/01_schema_vetrina_accordi.sql`, `02_dati_accordi_marzocchi_2027.sql`, `03_catalogo_richieste.sql`.
+- Schema: `supabase/01_schema_vetrina_accordi.sql`, `02_dati_accordi_marzocchi_2027.sql`, `03_catalogo_richieste.sql`,
+  `04_sincronizza_catalogo.sql` (funzione usata solo da n8n, chiave segreta della vetrina).
 - Il cruscotto calcola, la vetrina mostra. Perimetro per cliente (brand/famiglie, stock/su ordine) e prezzi stanno
   nel cruscotto (`banco_perimetro`, parametro `intercompany` per cliente, `calcola_prezzo`). La funzione del
   cruscotto `banco_export(cliente, data)` produce il catalogo pronto da mostrare (solo prezzo netto, mai costi).
 - Aggiornamenti: solo il flusso n8n "Banco Digitale · sincronizzazione" (notte), con la chiave di servizio del
-  progetto vetrina conservata solo in n8n. Sostituisce le righe del cliente in `catalogo`, scrive `sincronizzazioni`
+  progetto vetrina conservata solo in n8n (flusso ItKGfAmGbQuGSDr8, ogni mattina 07:10): cruscotto `banco_clienti()` e
+  `banco_export_json(cliente)`, vetrina `sincronizza_catalogo()`. Sostituisce le righe del cliente in `catalogo`, scrive `sincronizzazioni`
   e aggiorna `fatturato` (fatture meno note di credito dall'export settimanale di Mago). Per i clienti con accordo
   non ancora in vigore i prezzi si calcolano alla data di inizio dell'accordo (Marzocchi: 2027-01-01).
 - Le richieste d'ordine si scrivono solo con la funzione `invia_richiesta()`: i prezzi si rileggono dal catalogo,
