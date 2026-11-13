@@ -19,6 +19,10 @@ export async function inviaLink(_prima: StatoAccesso, dati: FormData): Promise<S
   if (error?.code === "over_email_send_rate_limit" || error?.status === 429) {
     return { inviato: false, errore: "Hai chiesto troppi codici in poco tempo. Aspetta qualche minuto e riprova." };
   }
+  // invio non riuscito (es. posta in uscita non configurata): meglio dirlo che far aspettare un codice che non arriva
+  if (error && (error.status ?? 0) >= 500) {
+    return { inviato: false, errore: "Non riusciamo a inviare il codice in questo momento. Riprova tra qualche minuto o scrivi a info@interfluid.net." };
+  }
   // Stessa risposta in ogni caso: non riveliamo quali indirizzi sono abilitati.
   return { inviato: true, errore: null, email };
 }
