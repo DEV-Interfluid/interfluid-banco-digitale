@@ -50,11 +50,22 @@ revoke all on function public.cambia_cliente(text) from public, anon;
 grant execute on function public.cambia_cliente(text) to authenticated;
 
 -- le richieste di prova (di chi simula) le vede solo chi le ha fatte
+create or replace function public.utente_simula(p_user uuid)
+returns boolean language sql stable security definer set search_path = public
+as $$ select exists (select 1 from public.simulazioni where user_id = p_user) $$;
+revoke all on function public.utente_simula(uuid) from public, anon;
+grant execute on function public.utente_simula(uuid) to authenticated;
+
 drop policy if exists richieste_proprie on public.richieste;
 create policy richieste_proprie on public.richieste for select to authenticated
-  using (cliente = public.mio_cliente()
-         and (user_id = auth.uid() or not exists (select 1 from public.simulazioni s where s.user_id = richieste.user_id)));
+  using (cliente = public.mio_cliente() and (user_id = auth.uid() or not public.utente_simula(user_id)));
 
 drop policy if exists richieste_righe_proprie on public.richieste_righe;
 create policy richieste_righe_proprie on public.richieste_righe for select to authenticated
   using (exists (select 1 from public.richieste r where r.id = richieste_righe.richiesta_id));
+
+-- abilitazione iniziale: G. Sala può simulare tutti i clienti
+insert into public.simulazioni (user_id, cliente)
+select u.id, c.codice from auth.users u cross join public.clienti c
+where lower(u.email) = 'g.sala@interfluid.net'
+on conflict do nothing;
