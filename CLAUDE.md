@@ -20,8 +20,9 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
 2. Le regole del database (RLS) mostrano a ogni utente solo le righe del suo cliente (`mio_cliente()`). L'app non
    filtra al posto del database: se una lettura restituisce dati di un altro cliente è un errore grave da segnalare.
 3. Nessun costo, margine, tier, sconto fornitore, codice gestionale o dato di altri clienti nella vetrina.
-4. Gli utenti esistono solo su invito; "Allow new users to sign up" resta **disattivato**; l'accesso è con link via
-   email (`shouldCreateUser: false`). Un accesso si revoca con `utenti_clienti.attivo = false`.
+4. Gli utenti esistono solo su invito; "Allow new users to sign up" resta **disattivato**; l'accesso è con un codice
+   via email scritto nella pagina di accesso (`shouldCreateUser: false`, `verifyOtp` tipo email; G. Sala 13/11/2026: il link
+   si rompeva se aperto in un altro browser o "bruciato" dai filtri antispam). Il modello email "Magic link" mostra `{{ .Token }}`. Un accesso si revoca con `utenti_clienti.attivo = false`.
 5. Le chiamate al database si fanno dal server. `.env.local` non va mai nel repository.
 
 ## Chi scrive nel database

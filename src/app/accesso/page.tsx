@@ -3,7 +3,7 @@ import { ModuloAccesso } from "./modulo";
 export const metadata = { title: "Accesso · Banco Interfluid" };
 
 const ERRORI: Record<string, string> = {
-  link: "Il link non è più valido o è già stato usato. Chiedine uno nuovo.",
+  link: "Il link non è più valido. Chiedi un codice di accesso e scrivilo qui sotto.",
 };
 
 export default async function Accesso({ searchParams }: { searchParams: Promise<{ errore?: string }> }) {
