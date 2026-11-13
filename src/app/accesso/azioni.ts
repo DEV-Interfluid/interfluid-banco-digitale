@@ -14,7 +14,11 @@ export async function inviaLink(_prima: StatoAccesso, dati: FormData): Promise<S
   const h = await headers();
   const origine = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
   const supabase = await creaClientSupabase();
-  await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${origine}/auth/conferma` } });
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${origine}/auth/conferma` } });
+  // troppe email in poco tempo: lo diciamo, altrimenti si aspetta un codice che non arriverà
+  if (error?.code === "over_email_send_rate_limit" || error?.status === 429) {
+    return { inviato: false, errore: "Hai chiesto troppi codici in poco tempo. Aspetta qualche minuto e riprova." };
+  }
   // Stessa risposta in ogni caso: non riveliamo quali indirizzi sono abilitati.
   return { inviato: true, errore: null, email };
 }

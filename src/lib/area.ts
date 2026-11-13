@@ -37,6 +37,8 @@ export type Richiesta = { id: number; riferimento: string | null; totale: number
 export type Area = {
   email: string; nome: string | null; cliente: string; ragioneSociale: string;
   accordi: Accordo[]; catalogo: Voce[]; aggiornatoIl: string | null; richieste: Richiesta[];
+  /** Solo per gli utenti Interfluid abilitati alla simulazione: i clienti tra cui passare. */
+  simulabili: { codice: string; ragioneSociale: string }[];
 };
 
 const PAGINA = 1000;
@@ -51,13 +53,14 @@ export const caricaArea = cache(async (): Promise<Area | "non_abilitato"> => {
   const { data: u } = await supabase.from("utenti_clienti").select("cliente, nome, attivo").maybeSingle();
   if (!u || !u.attivo) return "non_abilitato";
 
-  const [{ data: cli }, { data: acc, error }, { data: sinc }, { data: ric }] = await Promise.all([
+  const [{ data: cli }, { data: acc, error }, { data: sinc }, { data: ric }, { data: sim }] = await Promise.all([
     supabase.from("clienti").select("codice, ragione_sociale").maybeSingle(),
     supabase.from("accordi")
       .select("id, brand, anno, valido_dal, valido_al, soglia_bonus, bonus_pct, note, fatturato(importo_netto, aggiornato_al), listino(codice, serie, prezzo_netto, a_magazzino)")
       .order("anno", { ascending: false }),
     supabase.from("sincronizzazioni").select("eseguita_il").maybeSingle(),
     supabase.from("richieste").select("id, riferimento, totale, stato, creata_il, richieste_righe(count)").order("creata_il", { ascending: false }).limit(8),
+    supabase.rpc("clienti_simulabili"),
   ]);
   if (error) throw new Error("Lettura dell'accordo non riuscita");
 
@@ -109,6 +112,7 @@ export const caricaArea = cache(async (): Promise<Area | "non_abilitato"> => {
   return {
     email, nome: u.nome, cliente: u.cliente, ragioneSociale: cli?.ragione_sociale ?? u.cliente,
     accordi, catalogo, aggiornatoIl: sinc?.eseguita_il ?? null, richieste,
+    simulabili: ((sim ?? []) as { codice: string; ragione_sociale: string }[]).map((x) => ({ codice: x.codice, ragioneSociale: x.ragione_sociale })),
   };
 });
 
