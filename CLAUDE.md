@@ -28,7 +28,7 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
 ## Chi scrive nel database
 
 - Schema: `supabase/01_schema_vetrina_accordi.sql`, `02_dati_accordi_marzocchi_2027.sql`, `03_catalogo_richieste.sql`,
-  `04_sincronizza_catalogo.sql`, `05_avviso_richieste.sql`, `06_chiavi_equivalenza.sql`, `07_confronti_tecnici.sql`
+  `04_sincronizza_catalogo.sql`, `05_avviso_richieste.sql`, `06_chiavi_equivalenza.sql`, `07_confronti_tecnici.sql`, `08_simulazione_clienti.sql`
   (funzioni usate solo da n8n, chiave segreta della vetrina).
 - Il cruscotto calcola, la vetrina mostra. Perimetro per cliente (brand/famiglie, stock/su ordine) e prezzi stanno
   nel cruscotto (`banco_perimetro`, parametro `intercompany` per cliente, `calcola_prezzo`). La funzione del
@@ -56,6 +56,13 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
   corrisponde a una sola sigla di pompa con confronto validato. Se le sigle possibili sono più di una resta un suggerimento.
 - La fascia "Alternative" compare solo se esistono equivalenti nel catalogo del cliente. Nella richiesta resta
   `richiesto`, il codice come l'ha scritto il cliente.
+
+## Simulazione dei clienti (G. Sala 13/11/2026)
+
+- Un utente Interfluid (email @interfluid.net) con righe in `simulazioni` vede il menu "Vedi come" e passa da un cliente
+  all'altro con `cambia_cliente()`, che sposta la sua riga in `utenti_clienti`. Le regole (RLS, `mio_cliente()`) non
+  cambiano: si vede sempre un cliente alla volta. `simulazioni` si scrive solo dal pannello di Supabase.
+- Le richieste di chi simula le vede solo lui (`utente_simula()` nella regola di `richieste`); l'avviso le manda solo a G. Sala.
 
 ## Confronti tecnici delle pompe (G. Sala 12/11/2026)
 

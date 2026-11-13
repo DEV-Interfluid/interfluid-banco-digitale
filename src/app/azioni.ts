@@ -26,3 +26,12 @@ export async function inviaRichiesta(righe: { codice: string; qta: number; richi
   revalidatePath("/");
   return { id: Number(data), errore: null };
 }
+
+/** Utenti Interfluid: passa a vedere il Banco come un altro cliente (il database controlla chi può farlo). */
+export async function cambiaCliente(dati: FormData) {
+  const cliente = String(dati.get("cliente") ?? "").trim().slice(0, 20);
+  if (!cliente) return;
+  const supabase = await creaClientSupabase();
+  await supabase.rpc("cambia_cliente", { p_cliente: cliente });
+  revalidatePath("/");
+}

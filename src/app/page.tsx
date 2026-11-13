@@ -2,6 +2,7 @@ import { Banco } from "@/components/banco";
 import { caricaArea, registra } from "@/lib/area";
 
 import { esci } from "./accesso/azioni";
+import { SceltaCliente } from "./scelta-cliente";
 
 function saluto() {
   const h = Number(new Intl.DateTimeFormat("it-IT", { hour: "numeric", hour12: false, timeZone: "Europe/Rome" }).format(new Date()));
@@ -45,11 +46,16 @@ export default async function Home() {
         <div className="wrap top-in">
           <Marchio />
           <div className="chi">
-            <span><b>{area.ragioneSociale}</b>{area.nome ? ` · ${area.nome}` : ""}</span>
+            {area.simulabili.length > 1
+              ? <SceltaCliente attuale={area.cliente} clienti={area.simulabili} />
+              : <span><b>{area.ragioneSociale}</b>{area.nome ? ` · ${area.nome}` : ""}</span>}
             <form action={esci}><button className="linkbtn chiaro" type="submit">Esci</button></form>
           </div>
         </div>
       </header>
+      {area.simulabili.length > 1 && (
+        <div className="simula"><div className="wrap">Simulazione: stai vedendo il Banco come <b>{area.ragioneSociale}</b>. Le tue richieste arrivano solo a te e il cliente non le vede.</div></div>
+      )}
       <main className="wrap principale">
         <div className="titolo">
           <h1>{saluto()}{nome ? `, ${nome}` : ""}. Da dove riprendi?</h1>

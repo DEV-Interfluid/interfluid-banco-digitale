@@ -57,6 +57,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--ink-2);outline:none;b
 .top-in{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:58px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}
 .chi{display:flex;align-items:center;gap:14px;font-size:13.5px;flex-wrap:wrap}
 .chi b{font-weight:700}
+.scelta-cli{display:flex;align-items:center;gap:8px;color:#fff}
+.scelta-cli span{opacity:.75}
+.scelta-cli select{font:inherit;font-weight:700;background:#2A2F34;color:#fff;border:1px solid #3A4046;border-radius:8px;padding:5px 8px}
+.simula{background:#FEF3DD;border-bottom:1px solid #F3D9A4;color:#6B4A0C;font-size:13px;padding:7px 0}
 .principale{flex:1;display:grid;gap:16px;padding-top:24px;padding-bottom:40px}
 .titolo{display:grid;gap:4px}
 
