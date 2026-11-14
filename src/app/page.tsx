@@ -61,7 +61,7 @@ export default async function Home() {
           <h1>{saluto()}{nome ? `, ${nome}` : ""}. Da dove riprendi?</h1>
           <span className="muto">Prezzi netti riservati {area.ragioneSociale}, IVA esclusa</span>
         </div>
-        <Banco catalogo={area.catalogo} accordo={accordo} richieste={area.richieste} aggiornatoIl={area.aggiornatoIl} />
+        <Banco catalogo={area.catalogo} accordo={accordo} richieste={area.richieste} aggiornatoIl={area.aggiornatoIl} giacenzeAl={area.giacenzeAl} />
       </main>
       <footer>
         <div className="wrap piede">

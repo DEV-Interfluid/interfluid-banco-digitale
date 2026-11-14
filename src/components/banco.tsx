@@ -15,11 +15,24 @@ const chiave = (s: string) => s.toUpperCase().replace(/[\s\-_/.]+/g, "").replace
 const ordina = (l: Voce[]) => l.slice().sort((a, b) => (a.disponibilita === "disponibile" ? 0 : 1) - (b.disponibilita === "disponibile" ? 0 : 1)
   || (a.esaurimento ? 1 : 0) - (b.esaurimento ? 1 : 0) || (a.prezzo ?? Infinity) - (b.prezzo ?? Infinity)).slice(0, 6);
 
+/** Pezzi pronti nei due magazzini: Interfluid e Hydraut (Gallarate). */
+function Magazzini({ v }: { v: Voce }) {
+  if (v.dispInterfluid == null && v.dispHydraut == null) return null;
+  const i = v.dispInterfluid ?? 0, h = v.dispHydraut ?? 0;
+  if (i + h <= 0) return null;
+  return (
+    <span className="mag">
+      <span className={i > 0 ? "on" : ""}>Interfluid <b className="num">{numero(i, 0)}</b></span>
+      <span className={h > 0 ? "on" : ""}>Hydraut <b className="num">{numero(h, 0)}</b></span>
+    </span>
+  );
+}
+
 function Disp({ v, q = 1 }: { v: Voce; q?: number }) {
   if (v.modalita === "su_ordine") return <span className="pill blu">Su ordine</span>;
   if (v.disponibilita === "disponibile") {
     const parziale = v.disponibile != null && v.disponibile < q;
-    return <span className={parziale ? "pill amb" : "pill ok"}>{v.disponibile != null ? `${numero(v.disponibile, 0)} pz pronti` : "Pronta"}</span>;
+    return <><span className={parziale ? "pill amb" : "pill ok"}>{v.disponibile != null ? `${numero(v.disponibile, 0)} pz pronti` : "Pronta"}</span><Magazzini v={v} /></>;
   }
   if (v.disponibilita === "da_ordinare") return <span className="pill amb">Da ordinare</span>;
   return <span className="pill">–</span>;
@@ -27,7 +40,7 @@ function Disp({ v, q = 1 }: { v: Voce; q?: number }) {
 
 const Prezzo = ({ v }: { v: Voce }) => (v.prezzo == null ? <span className="muto">Su richiesta</span> : <>{numero(v.prezzo)}</>);
 
-export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo: Voce[]; accordo: Accordo | null; richieste: Richiesta[]; aggiornatoIl: string | null }) {
+export function Banco({ catalogo, accordo, richieste, aggiornatoIl, giacenzeAl }: { catalogo: Voce[]; accordo: Accordo | null; richieste: Richiesta[]; aggiornatoIl: string | null; giacenzeAl: { interfluid: string | null; hydraut: string | null } }) {
   const ix = useMemo(() => creaIndice(catalogo), [catalogo]);
   const brandList = useMemo(() => [...new Set(catalogo.map((v) => v.brand))].sort(), [catalogo]);
 
@@ -42,6 +55,8 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo
   const [cerca, setCerca] = useState("");
   const [fb, setFb] = useState("");
   const [soloPronti, setSoloPronti] = useState(false);
+  const [mag, setMag] = useState<"" | "interfluid" | "hydraut">("");
+  const conMagazzini = catalogo.some((v) => v.dispInterfluid != null || v.dispHydraut != null);
 
   const prezzate = righe.filter((r) => r.v && r.v.prezzo != null);
   const totale = prezzate.reduce((s, r) => s + r.v!.prezzo! * r.q, 0);
@@ -50,7 +65,8 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo
   const q = chiave(cerca);
   const visibili = catalogo.filter((v) =>
     (!q || chiave(v.codice).includes(q) || (v.descrizione ?? "").toUpperCase().includes(cerca.trim().toUpperCase())) &&
-    (!fb || v.brand === fb) && (!soloPronti || v.disponibilita === "disponibile"));
+    (!fb || v.brand === fb) && (!soloPronti || v.disponibilita === "disponibile") &&
+    (!mag || (mag === "interfluid" ? (v.dispInterfluid ?? 0) > 0 : (v.dispHydraut ?? 0) > 0)));
   const mostrati = visibili.slice(0, 300);
 
   function analizza(t = testo) { setRighe(leggiLista(t, ix)); setEsito(null); }
@@ -175,13 +191,18 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl }: { catalogo
       </div>
 
       <section className="card" aria-labelledby="catT">
-        <div className="card-h"><h2 id="catT">Il tuo catalogo</h2><span className="muto">{catalogo.length} codici{aggiornatoIl ? ` · prezzi e disponibilità aggiornati al ${data(aggiornatoIl)}` : ""}</span></div>
+        <div className="card-h"><h2 id="catT">Il tuo catalogo</h2><span className="muto">{catalogo.length} codici{aggiornatoIl ? ` · prezzi aggiornati al ${data(aggiornatoIl)}` : ""}{conMagazzini ? ` · pezzi pronti: Interfluid al ${data(giacenzeAl.interfluid)}, Hydraut al ${data(giacenzeAl.hydraut)}` : ""}</span></div>
         <div className="tools">
           <input type="search" aria-label="Cerca nel catalogo" placeholder="Cerca un codice o una descrizione" value={cerca} onChange={(e) => setCerca(e.target.value)} />
           {brandList.length > 1 && (
             <select aria-label="Brand" value={fb} onChange={(e) => setFb(e.target.value)}><option value="">Tutti i brand</option>{brandList.map((b) => <option key={b}>{b}</option>)}</select>
           )}
           <label className="check"><input type="checkbox" checked={soloPronti} onChange={(e) => setSoloPronti(e.target.checked)} /> Solo pronti</label>
+          {conMagazzini && (
+            <select aria-label="Magazzino" value={mag} onChange={(e) => setMag(e.target.value as typeof mag)}>
+              <option value="">Tutti i magazzini</option><option value="interfluid">Pronti da Interfluid</option><option value="hydraut">Pronti da Hydraut</option>
+            </select>
+          )}
           <a className="btn ghost" href="/listino.xlsx">Scarica in Excel</a>
           <span className="muto num">{visibili.length} codici{visibili.length > mostrati.length ? `, primi ${mostrati.length}` : ""}</span>
         </div>

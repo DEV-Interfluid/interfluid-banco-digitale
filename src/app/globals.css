@@ -96,6 +96,9 @@ input.qta{width:76px;text-align:right;padding:5px 8px;border-radius:8px;font-fam
 .pill.ok{background:var(--ok-bg);color:var(--ok)}
 .pill.blu{background:var(--blu-bg);color:var(--blu)}
 .pill.amb{background:var(--amb-bg);color:var(--amb)}
+.mag{display:inline-flex;gap:8px;font-size:12px;color:var(--muted);white-space:nowrap;vertical-align:middle;margin-right:4px}
+.mag b{font-weight:700}
+.mag .on{color:var(--ink-2)}
 .pallino{width:9px;height:9px;border-radius:50%;flex:none;background:var(--muted)}
 .pallino.verde{background:var(--ok)}.pallino.blu{background:var(--blu)}.pallino.rosso{background:var(--red)}
 
