@@ -28,7 +28,7 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
 ## Chi scrive nel database
 
 - Schema: `supabase/01_schema_vetrina_accordi.sql`, `02_dati_accordi_marzocchi_2027.sql`, `03_catalogo_richieste.sql`,
-  `04_sincronizza_catalogo.sql`, `05_avviso_richieste.sql`, `06_chiavi_equivalenza.sql`, `07_confronti_tecnici.sql`, `08_simulazione_clienti.sql`
+  `04_sincronizza_catalogo.sql`, `05_avviso_richieste.sql`, `06_chiavi_equivalenza.sql`, `07_confronti_tecnici.sql`, `08_simulazione_clienti.sql`, `09_giacenze_per_magazzino.sql`
   (funzioni usate solo da n8n, chiave segreta della vetrina).
 - Il cruscotto calcola, la vetrina mostra. Perimetro per cliente (brand/famiglie, stock/su ordine) e prezzi stanno
   nel cruscotto (`banco_perimetro`, parametro `intercompany` per cliente, `calcola_prezzo`). La funzione del
@@ -56,6 +56,12 @@ i propri prezzi. Quando il database del cruscotto sarà messo in sicurezza, l'ar
   corrisponde a una sola sigla di pompa con confronto validato. Se le sigle possibili sono più di una resta un suggerimento.
 - La fascia "Alternative" compare solo se esistono equivalenti nel catalogo del cliente. Nella richiesta resta
   `richiesto`, il codice come l'ha scritto il cliente.
+
+## Disponibilità per magazzino (G. Sala 14/11/2026)
+
+- Il cliente vede i pezzi pronti separati tra Interfluid e Hydraut (`catalogo.disp_interfluid`, `disp_hydraut`, con la data
+  di ciascuna giacenza); `disponibile` è la somma. Il cruscotto li legge da `giacenze_snapshot` e `giacenze_hydraut`
+  con lo stesso codice Mago di `calcola_prezzo` (`codici_giacenza`).
 
 ## Simulazione dei clienti (G. Sala 13/11/2026)
 

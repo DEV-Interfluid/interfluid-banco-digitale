@@ -23,6 +23,8 @@ export type Voce = {
   codice: string; descrizione: string | null; brand: string; serie: string | null;
   prezzo: number | null; modalita: "stock" | "su_ordine"; disponibile: number | null;
   disponibilita: "disponibile" | "da_ordinare" | null; esaurimento: boolean; accordo: boolean;
+  /** pezzi pronti per magazzino (null = quantità non mostrata); disponibile è la somma */
+  dispInterfluid: number | null; dispHydraut: number | null;
   /** chiavi di equivalenza dal cruscotto: numeri R (R:...) e sigle (T:...) degli equivalenti */
   chiavi: string[];
   /** confronti tecnici validati (pompe): presenti solo per le alternative del comparatore */
@@ -37,6 +39,8 @@ export type Richiesta = { id: number; riferimento: string | null; totale: number
 export type Area = {
   email: string; nome: string | null; cliente: string; ragioneSociale: string;
   accordi: Accordo[]; catalogo: Voce[]; aggiornatoIl: string | null; richieste: Richiesta[];
+  /** data della giacenza di ciascun magazzino */
+  giacenzeAl: { interfluid: string | null; hydraut: string | null };
   /** Solo per gli utenti Interfluid abilitati alla simulazione: i clienti tra cui passare. */
   simulabili: { codice: string; ragioneSociale: string }[];
 };
@@ -66,9 +70,11 @@ export const caricaArea = cache(async (): Promise<Area | "non_abilitato"> => {
 
   // catalogo a pagine (il server restituisce al massimo 1000 righe per lettura)
   const catalogo: Voce[] = [];
+  const giacenzeAl: Area["giacenzeAl"] = { interfluid: null, hydraut: null };
+  const piuRecente = (a: string | null, b: string | null) => (!b ? a : !a || b > a ? b : a);
   for (let da = 0; ; da += PAGINA) {
     const { data: righe, error: e } = await supabase.from("catalogo")
-      .select("codice, descrizione, brand, serie, prezzo_netto, modalita, disponibile, disponibilita, esaurimento, accordo, chiavi, confronti")
+      .select("codice, descrizione, brand, serie, prezzo_netto, modalita, disponibile, disponibilita, esaurimento, accordo, chiavi, confronti, disp_interfluid, disp_hydraut, giac_interfluid_al, giac_hydraut_al")
       .order("codice").range(da, da + PAGINA - 1);
     if (e) throw new Error("Lettura del catalogo non riuscita");
     for (const r of righe ?? []) {
@@ -77,7 +83,11 @@ export const caricaArea = cache(async (): Promise<Area | "non_abilitato"> => {
         prezzo: r.prezzo_netto == null ? null : Number(r.prezzo_netto), modalita: r.modalita,
         disponibile: r.disponibile == null ? null : Number(r.disponibile), disponibilita: r.disponibilita,
         esaurimento: r.esaurimento, accordo: r.accordo, chiavi: r.chiavi ?? [], confronti: (r.confronti ?? []) as Confronto[],
+        dispInterfluid: r.disp_interfluid == null ? null : Number(r.disp_interfluid),
+        dispHydraut: r.disp_hydraut == null ? null : Number(r.disp_hydraut),
       });
+      giacenzeAl.interfluid = piuRecente(giacenzeAl.interfluid, r.giac_interfluid_al);
+      giacenzeAl.hydraut = piuRecente(giacenzeAl.hydraut, r.giac_hydraut_al);
     }
     if (!righe || righe.length < PAGINA) break;
   }
@@ -98,6 +108,7 @@ export const caricaArea = cache(async (): Promise<Area | "non_abilitato"> => {
         catalogo.push({
           codice: r.codice, descrizione: null, brand: a.brand, serie: r.serie, prezzo: Number(r.prezzo_netto), modalita: "stock",
           disponibile: null, disponibilita: r.a_magazzino ? "disponibile" : "da_ordinare", esaurimento: false, accordo: true, chiavi: [], confronti: [],
+          dispInterfluid: null, dispHydraut: null,
         });
       }
     }
@@ -111,7 +122,7 @@ export const caricaArea = cache(async (): Promise<Area | "non_abilitato"> => {
 
   return {
     email, nome: u.nome, cliente: u.cliente, ragioneSociale: cli?.ragione_sociale ?? u.cliente,
-    accordi, catalogo, aggiornatoIl: sinc?.eseguita_il ?? null, richieste,
+    accordi, catalogo, aggiornatoIl: sinc?.eseguita_il ?? null, richieste, giacenzeAl,
     simulabili: ((sim ?? []) as { codice: string; ragione_sociale: string }[]).map((x) => ({ codice: x.codice, ragioneSociale: x.ragione_sociale })),
   };
 });
