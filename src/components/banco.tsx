@@ -28,11 +28,11 @@ function Magazzini({ v }: { v: Voce }) {
   );
 }
 
-function Disp({ v, q = 1 }: { v: Voce; q?: number }) {
+function Disp({ v, q = 1, mag = false }: { v: Voce; q?: number; mag?: boolean }) {
   if (v.modalita === "su_ordine") return <span className="pill blu">Su ordine</span>;
   if (v.disponibilita === "disponibile") {
     const parziale = v.disponibile != null && v.disponibile < q;
-    return <><span className={parziale ? "pill amb" : "pill ok"}>{v.disponibile != null ? `${numero(v.disponibile, 0)} pz pronti` : "Pronta"}</span><Magazzini v={v} /></>;
+    return <><span className={parziale ? "pill amb" : "pill ok"}>{v.disponibile != null ? `${numero(v.disponibile, 0)} pz pronti` : "Pronta"}</span>{mag && <Magazzini v={v} />}</>;
   }
   if (v.disponibilita === "da_ordinare") return <span className="pill amb">Da ordinare</span>;
   return <span className="pill">–</span>;
@@ -56,7 +56,8 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl, giacenzeAl }
   const [fb, setFb] = useState("");
   const [soloPronti, setSoloPronti] = useState(false);
   const [mag, setMag] = useState<"" | "interfluid" | "hydraut">("");
-  const conMagazzini = catalogo.some((v) => v.dispInterfluid != null || v.dispHydraut != null);
+  // i due magazzini si mostrano solo se il catalogo del cliente ha pezzi pronti da Hydraut
+  const conMagazzini = useMemo(() => catalogo.some((v) => (v.dispHydraut ?? 0) > 0), [catalogo]);
 
   const prezzate = righe.filter((r) => r.v && r.v.prezzo != null);
   const totale = prezzate.reduce((s, r) => s + r.v!.prezzo! * r.q, 0);
@@ -134,7 +135,7 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl, giacenzeAl }
                         <td className="r"><input className="qta" type="number" min={1} aria-label={`Quantità ${r.testo}`} value={r.q} onChange={(e) => cambiaQ(i, Number(e.target.value))} /></td>
                         <td className="r num">{r.v ? <Prezzo v={r.v} /> : "–"}</td>
                         <td className="r num">{r.v?.prezzo != null ? numero(r.v.prezzo * r.q) : "–"}</td>
-                        <td>{r.v ? <Disp v={r.v} q={r.q} /> : <span className="pill amb">Da quotare</span>}{r.v?.esaurimento && <span className="pill">Fine serie</span>}</td>
+                        <td>{r.v ? <Disp v={r.v} q={r.q} mag={conMagazzini} /> : <span className="pill amb">Da quotare</span>}{r.v?.esaurimento && <span className="pill">Fine serie</span>}</td>
                         <td><button type="button" className="linkbtn" aria-label={`Togli ${r.testo}`} onClick={() => togli(i)}>Togli</button></td>
                       </tr>
                       {alts.length > 0 && (
@@ -145,7 +146,7 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl, giacenzeAl }
                               {alts.map((a) => (
                                 <button type="button" key={a.codice} className="alt-c" onClick={() => scegli(i, a)} title="Usa questo codice">
                                   <span className="code">{a.codice}</span>
-                                  <span className="alt-m"><span className="marca">{a.brand}</span>{(() => { const ca = confrontoModello(a, r.confronto?.modello) ?? confrontoPer(a, r.testo); return ca ? <Verdetto c={ca} /> : null; })()}{a.prezzo != null ? <span className="num">€ {numero(a.prezzo)}</span> : <span className="muto">su richiesta</span>}<Disp v={a} q={r.q} />{a.esaurimento && <span className="pill">Fine serie</span>}</span>
+                                  <span className="alt-m"><span className="marca">{a.brand}</span>{(() => { const ca = confrontoModello(a, r.confronto?.modello) ?? confrontoPer(a, r.testo); return ca ? <Verdetto c={ca} /> : null; })()}{a.prezzo != null ? <span className="num">€ {numero(a.prezzo)}</span> : <span className="muto">su richiesta</span>}<Disp v={a} q={r.q} mag={conMagazzini} />{a.esaurimento && <span className="pill">Fine serie</span>}</span>
                                 </button>
                               ))}
                             </div>
@@ -216,7 +217,7 @@ export function Banco({ catalogo, accordo, richieste, aggiornatoIl, giacenzeAl }
                   <td className="code">{v.codice}</td>
                   <td className="hide-s">{v.descrizione ?? v.serie ?? v.brand}</td>
                   <td className="r num"><Prezzo v={v} /></td>
-                  <td><Disp v={v} />{v.esaurimento && <span className="pill">Fine serie</span>}</td>
+                  <td><Disp v={v} mag={conMagazzini} />{v.esaurimento && <span className="pill">Fine serie</span>}</td>
                   <td className="r"><button type="button" className="btn ghost piccolo" onClick={() => aggiungi(v.codice)}>Aggiungi</button></td>
                 </tr>
               ))}
